@@ -1,27 +1,43 @@
-const BASE = new URL('./', self.location).pathname;
-const CACHE = 'CACHE_VER';
+// Scope động theo thư mục đang host
+const BASE  = new URL('./', self.location).pathname;
+// Đổi version khi thay file để clients nhận bản mới
+const CACHE = 'evnspc-verify-v3';
+
+// Các asset tĩnh cần có sẵn để hiển thị chrome của app
 const STATIC_ASSETS = [
   BASE,
   BASE + 'index.html',
   BASE + 'manifest.webmanifest',
+  BASE + 'icon-192.png',
   BASE + 'icon-192-any.png',
-  BASE + 'icon-512-any.png',
   BASE + 'icon-192-maskable.png',
+  BASE + 'icon-512.png',
+  BASE + 'icon-512-any.png',
   BASE + 'icon-512-maskable.png',
   BASE + 'evn_logo.png'
 ];
+
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
+
 self.addEventListener('activate', (e) => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : 0))));
+  e.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.map(k => (k !== CACHE ? caches.delete(k) : Promise.resolve()))))
+  );
   self.clients.claim();
 });
+
+// Chiến lược:
+// - navigate (index.html): network-first → fallback cache (để có vỏ app khi offline)
+// - assets tĩnh same-origin: cache-first
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
-  // Only handle same-origin requests
+
+  // Chỉ xử lý cùng origin + trong scope BASE
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
 
   if (req.mode === 'navigate') {
@@ -38,8 +54,10 @@ self.addEventListener('fetch', (e) => {
     })());
     return;
   }
+
+  // Asset tĩnh: cache-first
   e.respondWith((async () => {
-    const cache = await caches.open(CACHE);
+    const cache  = await caches.open(CACHE);
     const cached = await cache.match(req, { ignoreVary: true });
     if (cached) return cached;
     const res = await fetch(req);
