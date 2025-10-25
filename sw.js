@@ -1,6 +1,5 @@
 const BASE = new URL('./', self.location).pathname;
-const CACHE = 'crew-pwa-v6';
-
+const CACHE = 'CACHE_VER';
 const STATIC_ASSETS = [
   BASE,
   BASE + 'index.html',
@@ -11,22 +10,18 @@ const STATIC_ASSETS = [
   BASE + 'icon-512-maskable.png',
   BASE + 'evn_logo.png'
 ];
-
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
-
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : 0)))
-  );
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.map(k => k !== CACHE ? caches.delete(k) : 0))));
   self.clients.claim();
 });
-
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
+  // Only handle same-origin requests
   if (url.origin !== self.location.origin || !url.pathname.startsWith(BASE)) return;
 
   if (req.mode === 'navigate') {
@@ -43,7 +38,6 @@ self.addEventListener('fetch', (e) => {
     })());
     return;
   }
-
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(req, { ignoreVary: true });
